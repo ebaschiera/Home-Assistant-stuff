@@ -1,0 +1,100 @@
+esphome:
+  name: energy_display
+  platform: ESP32
+  board: esp-wrover-kit
+  on_boot:
+    priority: -100
+    then:
+      - light.turn_on:
+          id: led8riga
+          effect: "Energy Monitor"
+          brightness: 40%
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: !secret api_pwd_energy_display
+
+ota:
+  password: !secret api_pwd_energy_display
+
+light:
+  - platform: fastled_clockless
+    chipset: WS2811
+    pin: GPIO23
+    num_leds: 8
+    rgb_order: GRB
+    name: 8-led energy monitor
+    id: led8riga
+    effects:
+    - addressable_lambda:
+        name: "Energy Monitor"
+        lambda: |-
+          const int warning_threshold = -3000; //W
+          const int warning_blink_period = 500; //ms
+          const int alarm_threshold = -3500; //W
+          const int alarm_blink_period = 100; //ms
+          int blink_period = 0;
+          const int led_strip_scale = 3000; //W - "all leds on mean 3000W"
+          int leds_on = 0;
+          double energy_export_value = (id(energy_export).state);
+          //double energy_export_value = (id(energy_import_test).state);
+          if (isnan(energy_export_value)) {
+            //ESP_LOGD("ERM", "Waiting for energy_export_value");
+            it.all() = ESPColor::BLACK;
+            return;
+          }
+          //ESP_LOGD("ERM", "energy_export_value: %f", energy_export_value);
+          if (energy_export_value >= 0) {
+            leds_on = ceil((it.size() * energy_export_value) / led_strip_scale);
+            it.all() = ESPColor::BLACK;
+            it.range(0, leds_on) = ESPColor(0, 255, 0);
+          } else {
+            if (energy_export_value > warning_threshold) {
+              //normal mode
+              leds_on = ceil((it.size() * (energy_export_value * -1)) / led_strip_scale);
+              it.all() = ESPColor::BLACK;
+              it.range(0, leds_on) = ESPColor(255, 0, 0);
+            } else {
+              //alert mode: blink lights!
+              static bool is_on = false;
+              uint32_t now = millis();
+              static uint32_t last_update = now;
+              //ESP_LOGD("ERM", "now: %d - last_update: %d - sub: %d", now, last_update, (now - last_update));
+              if (energy_export_value <= alarm_threshold) {
+                blink_period = alarm_blink_period;
+              } else {
+                blink_period = warning_blink_period;
+              }
+              if ((now - last_update) > blink_period) {
+                //ESP_LOGD("ERM", "intervengo");
+                last_update = now;
+                if (is_on) {
+                  //ESP_LOGD("ERM", "intervengo spengo");
+                  it.all() = ESPColor::BLACK;
+                  is_on = false;
+                } else {
+                  //ESP_LOGD("ERM", "intervengo accendo");
+                  it.all() = ESPColor(255, 0, 0);
+                  is_on = true;
+                }
+              }
+            }
+          }
+          
+sensor:
+  - platform: homeassistant
+    id: energy_import_test
+    entity_id: sensor.energy_import_test
+    internal: true
+  - platform: homeassistant
+    id: energy_export
+    entity_id: sensor.shelly_energy_export
+    internal: true
