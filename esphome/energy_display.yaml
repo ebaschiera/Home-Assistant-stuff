@@ -48,20 +48,20 @@ light:
           //double energy_export_value = (id(energy_import_test).state);
           if (isnan(energy_export_value)) {
             //ESP_LOGD("ERM", "Waiting for energy_export_value");
-            it.all() = ESPColor::BLACK;
+            it.all() = COLOR_BLACK;
             return;
           }
           //ESP_LOGD("ERM", "energy_export_value: %f", energy_export_value);
           if (energy_export_value >= 0) {
             leds_on = ceil((it.size() * energy_export_value) / led_strip_scale);
-            it.all() = ESPColor::BLACK;
-            it.range(0, leds_on) = ESPColor(0, 255, 0);
+            it.all() = COLOR_BLACK;
+            it.range(0, leds_on) = Color(0, 255, 0);
           } else {
             if (energy_export_value > warning_threshold) {
               //normal mode
               leds_on = ceil((it.size() * (energy_export_value * -1)) / led_strip_scale);
-              it.all() = ESPColor::BLACK;
-              it.range(0, leds_on) = ESPColor(255, 0, 0);
+              it.all() = COLOR_BLACK;
+              it.range(0, leds_on) = Color(255, 0, 0);
             } else {
               //alert mode: blink lights!
               static bool is_on = false;
@@ -78,11 +78,11 @@ light:
                 last_update = now;
                 if (is_on) {
                   //ESP_LOGD("ERM", "intervengo spengo");
-                  it.all() = ESPColor::BLACK;
+                  it.all() = COLOR_BLACK;
                   is_on = false;
                 } else {
                   //ESP_LOGD("ERM", "intervengo accendo");
-                  it.all() = ESPColor(255, 0, 0);
+                  it.all() = Color(255, 0, 0);
                   is_on = true;
                 }
               }
